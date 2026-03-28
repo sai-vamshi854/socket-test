@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Socket.io Room Tester</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; padding: 2rem; width: 100%; max-width: 480px; }
+    h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+    label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
+    input { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none; }
+    input:focus { border-color: #6c63ff; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; }
+    button { padding: 9px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 1px solid #ddd; background: #fff; font-weight: 500; transition: all 0.15s; }
+    button:hover { background: #f0f0f0; }
+    button:active { transform: scale(0.97); }
+    #joinBtn { background: #6c63ff; color: #fff; border-color: #6c63ff; flex: 1; }
+    #joinBtn:hover { background: #5a52e0; }
+    #approveBtn { background: #22c55e; color: #fff; border-color: #22c55e; width: 100%; font-size: 16px; padding: 12px; display: none; }
+    #approveBtn:hover { background: #16a34a; }
+    .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; margin-bottom: 1.5rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+    .dot.on { background: #22c55e; }
+    .dot.connecting { background: #f59e0b; }
+    .log { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 12px; min-height: 140px; max-height: 220px; overflow-y: auto; font-size: 13px; font-family: monospace; }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+    .log-entry:last-child { border: none; }
+    .log-entry .time { color: #aaa; margin-right: 6px; }
+    .log-entry.recv { color: #16a34a; }
+    .log-entry.sent { color: #2563eb; }
+    .log-entry.sys { color: #888; font-style: italic; }
+    .log-entry.event { color: #d97706; font-weight: 600; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 1.5rem 0; }
+    .room-badge { display: inline-block; background: #ede9ff; color: #6c63ff; font-size: 12px; padding: 3px 10px; border-radius: 20px; margin-bottom: 1rem; display: none; }
+    .approve-section { text-align: center; }
+    .approve-section p { font-size: 13px; color: #888; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Socket.io Tester</h1>
+    <p class="sub">Open this in two browsers, join the same room, click Approve in one — see it instantly in the other.</p>
+
+    <label>Room name</label>
+    <div class="row">
+      <input type="text" id="roomInput" placeholder="e.g. myroom123" value="test-room" />
+      <button id="joinBtn" onclick="joinRoom()">Join</button>
+    </div>
+
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">Not connected</span>
+    </div>
+
+    <span class="room-badge" id="roomBadge"></span>
+
+    <div class="approve-section">
+      <button id="approveBtn" onclick="sendApprove()">Approve</button>
+      <p id="approveHint" style="display:none">Click Approve — the other browser gets the event instantly</p>
+    </div>
+
+    <hr class="divider" />
+
+    <label>Event log</label>
+    <div class="log" id="log"><div style="color:#bbb;font-style:italic;padding:4px 0">Waiting for events...</div></div>
+  </div>
+
+  <script>
+    const socket = io();
+    let currentRoom = '';
+
+    socket.on('connect', () => {
+      setDot('on');
+      log('sys', 'Connected: ' + socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      setDot('off');
+      log('sys', 'Disconnected');
+    });
+
+    socket.on('user-joined', (data) => {
+      log('sys', 'Another user joined the room: ' + data.id);
+    });
+
+    socket.on('approved', (data) => {
+      log('event', '🟢 APPROVED received from ' + data.from);
+      log('recv', 'Message: ' + data.message);
+      log('recv', 'Time: ' + data.timestamp);
+      // flash the page green briefly
+      document.body.style.background = '#dcfce7';
+      setTimeout(() => document.body.style.background = '#f5f5f5', 1000);
+    });
+
+    function joinRoom() {
+      const room = document.getElementById('roomInput').value.trim();
+      if (!room) return;
+      currentRoom = room;
+      socket.emit('join-room', room);
+      log('sys', 'Joined room: ' + room);
+      document.getElementById('roomBadge').textContent = 'Room: ' + room;
+      document.getElementById('roomBadge').style.display = 'inline-block';
+      document.getElementById('approveBtn').style.display = 'block';
+      document.getElementById('approveHint').style.display = 'block';
+      document.getElementById('joinBtn').textContent = 'Joined';
+      document.getElementById('joinBtn').disabled = true;
+    }
+
+    function sendApprove() {
+      if (!currentRoom) return;
+      socket.emit('approve', { room: currentRoom, message: 'User approved the request' });
+      log('sent', 'Emitted: approve → room ' + currentRoom);
+    }
+
+    function log(type, msg) {
+      const logEl = document.getElementById('log');
+      const empty = logEl.querySelector('div[style]');
+      if (empty) empty.remove();
+      const now = new Date().toTimeString().slice(0, 8);
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.innerHTML = `<span class="time">${now}</span>${msg}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setDot(state) {
+      const dot = document.getElementById('dot');
+      const txt = document.getElementById('statusText');
+      dot.className = 'dot' + (state === 'on' ? ' on' : '');
+      txt.textContent = state === 'on' ? 'Connected' : 'Disconnected';
+    }
+  </script>
+</body>
+</html>
