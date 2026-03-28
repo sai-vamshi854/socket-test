@@ -3,176 +3,218 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Socket.io Room Tester</title>
+  <title>Login Approval Test</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .card { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; padding: 2rem; width: 100%; max-width: 480px; }
-    h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-    .sub { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
-    label { font-size: 13px; color: #555; display: block; margin-bottom: 4px; }
-    input { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none; }
-    input:focus { border-color: #6c63ff; }
-    .row { display: flex; gap: 8px; margin-bottom: 12px; }
-    button { padding: 9px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 1px solid #ddd; background: #fff; font-weight: 500; transition: all 0.15s; }
-    button:hover { background: #f0f0f0; }
-    button:active { transform: scale(0.97); }
-    #joinBtn { background: #6c63ff; color: #fff; border-color: #6c63ff; flex: 1; }
-    #joinBtn:hover { background: #5a52e0; }
-    #joinBtn:disabled { background: #a5a0f0; border-color: #a5a0f0; cursor: not-allowed; }
-    #approveBtn { background: #22c55e; color: #fff; border-color: #22c55e; width: 100%; font-size: 16px; padding: 12px; display: none; }
-    #approveBtn:hover { background: #16a34a; }
-    .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #555; margin-bottom: 1rem; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; transition: background 0.6s; }
+    .card { background: #fff; border-radius: 16px; border: 1px solid #e5e5e5; padding: 2rem; width: 100%; max-width: 400px; text-align: center; }
+    h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    .sub { font-size: 13px; color: #888; margin-bottom: 2rem; }
+
+    /* ── BROWSER: waiting screen ── */
+    .waiting { display: block; }
+    .spinner { width: 48px; height: 48px; border: 3px solid #e5e5e5; border-top-color: #6c63ff; border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .session-box { background: #f5f3ff; border: 1px solid #ddd9ff; border-radius: 10px; padding: 12px 16px; margin-bottom: 1.5rem; }
+    .session-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+    .session-id { font-size: 15px; font-weight: 600; font-family: monospace; color: #6c63ff; letter-spacing: 2px; }
+    .status-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; color: #888; margin-bottom: 1rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
     .dot.on { background: #22c55e; }
-    .dot.connecting { background: #f59e0b; }
     .dot.off { background: #ef4444; }
-    .reconnect-banner { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 8px 12px; font-size: 13px; color: #92400e; margin-bottom: 1rem; display: none; }
-    .log { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 12px; min-height: 160px; max-height: 260px; overflow-y: auto; font-size: 13px; font-family: monospace; }
-    .log-entry { padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+    .copy-btn { font-size: 12px; color: #6c63ff; background: none; border: 1px solid #ddd9ff; border-radius: 6px; padding: 4px 10px; cursor: pointer; margin-top: 6px; }
+
+    /* ── BROWSER: logged in screen ── */
+    .loggedin { display: none; }
+    .check { width: 64px; height: 64px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; font-size: 28px; }
+    .user-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .user-sub { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+    .logout-btn { font-size: 13px; color: #888; background: none; border: 1px solid #ddd; border-radius: 8px; padding: 7px 16px; cursor: pointer; }
+
+    /* ── MOBILE: approve screen ── */
+    .mobile-screen { display: none; }
+    .mobile-screen .avatar { width: 64px; height: 64px; border-radius: 50%; background: #ede9ff; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 1rem; }
+    .approve-btn { background: #22c55e; color: #fff; border: none; border-radius: 10px; width: 100%; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: all 0.15s; }
+    .approve-btn:hover { background: #16a34a; }
+    .approve-btn:disabled { background: #86efac; cursor: not-allowed; }
+    .reject-btn { background: none; color: #ef4444; border: 1px solid #fecaca; border-radius: 10px; width: 100%; padding: 12px; font-size: 14px; cursor: pointer; }
+    .approved-done { display: none; }
+    .approved-done .check { background: #dcfce7; }
+
+    /* ── log ── */
+    .log { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; margin-top: 1.5rem; text-align: left; max-height: 160px; overflow-y: auto; font-size: 12px; font-family: monospace; }
+    .log-entry { padding: 3px 0; color: #888; border-bottom: 1px solid #f0f0f0; }
     .log-entry:last-child { border: none; }
-    .log-entry .time { color: #aaa; margin-right: 6px; }
-    .log-entry.recv { color: #16a34a; }
-    .log-entry.sent { color: #2563eb; }
-    .log-entry.sys { color: #888; font-style: italic; }
+    .log-entry.good { color: #16a34a; font-weight: 600; }
     .log-entry.warn { color: #d97706; }
-    .log-entry.event { color: #16a34a; font-weight: 600; }
-    .divider { border: none; border-top: 1px solid #eee; margin: 1.5rem 0; }
-    .room-badge { display: none; background: #ede9ff; color: #6c63ff; font-size: 12px; padding: 3px 10px; border-radius: 20px; margin-bottom: 1rem; }
-    .approve-section { text-align: center; }
-    .approve-section p { font-size: 13px; color: #888; margin-top: 8px; }
-    .flash-green { animation: flashGreen 1s ease; }
-    @keyframes flashGreen { 0% { background: #dcfce7; } 100% { background: #f5f5f5; } }
+    .log-entry.missed { color: #d97706; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Socket.io Tester</h1>
-    <p class="sub">Open in two browsers, join the same room, click Approve — see it instantly in the other.</p>
+<div class="card" id="card">
 
-    <label>Room name</label>
-    <div class="row">
-      <input type="text" id="roomInput" placeholder="e.g. myroom123" value="test-room" />
-      <button id="joinBtn" onclick="joinRoom()">Join</button>
+  <!-- ════ BROWSER LOGIN PAGE ════ -->
+  <div class="waiting" id="waitingScreen">
+    <div class="spinner" id="spinner"></div>
+    <h1>Waiting for approval</h1>
+    <p class="sub">Open the mobile page and click Approve to log in</p>
+    <div class="session-box">
+      <div class="session-label">SESSION ID — share this with mobile</div>
+      <div class="session-id" id="sessionDisplay">——</div>
+      <button class="copy-btn" onclick="copyMobileLink()">Copy mobile link</button>
     </div>
-
-    <div class="reconnect-banner" id="reconnectBanner">
-      Reconnecting... will auto-rejoin room once back online.
-    </div>
-
-    <div class="status">
+    <div class="status-row">
       <span class="dot" id="dot"></span>
-      <span id="statusText">Not connected</span>
+      <span id="statusText">Connecting...</span>
     </div>
-
-    <span class="room-badge" id="roomBadge"></span>
-
-    <div class="approve-section">
-      <button id="approveBtn" onclick="sendApprove()">Approve</button>
-      <p id="approveHint" style="display:none">Click Approve — the other browser gets the event instantly</p>
-    </div>
-
-    <hr class="divider" />
-
-    <label>Event log</label>
-    <div class="log" id="log"><div style="color:#bbb;font-style:italic;padding:4px 0">Waiting for events...</div></div>
   </div>
 
-  <script>
-    let currentRoom = '';
+  <!-- ════ BROWSER LOGGED IN ════ -->
+  <div class="loggedin" id="loggedinScreen">
+    <div class="check">✅</div>
+    <div class="user-name" id="loggedInUser">Mobile User</div>
+    <div class="user-sub" id="loggedInTime"></div>
+    <p style="font-size:13px;color:#555;margin-bottom:1.5rem;">You have been approved and logged in successfully.</p>
+    <button class="logout-btn" onclick="reset()">Start over</button>
+  </div>
 
-    const socket = io({
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000
-    });
+  <!-- ════ MOBILE APPROVE PAGE ════ -->
+  <div class="mobile-screen" id="mobileScreen">
+    <div class="avatar">📱</div>
+    <h1>Approve Login</h1>
+    <p class="sub" style="margin-bottom:1.5rem;">Someone is trying to log in from a browser. Approve to let them in.</p>
+    <div class="session-box" style="margin-bottom:1.5rem;">
+      <div class="session-label">SESSION</div>
+      <div class="session-id" id="mobileSessionDisplay">——</div>
+    </div>
+    <button class="approve-btn" id="approveBtn" onclick="sendApprove()">Approve Login</button>
+    <button class="reject-btn">Reject</button>
+  </div>
 
-    // connected (also fires after every reconnect)
-    socket.on('connect', () => {
-      setDot('on');
-      log('sys', 'Connected: ' + socket.id);
-      hideBanner();
+  <!-- ════ MOBILE DONE ════ -->
+  <div class="approved-done" id="approvedDone">
+    <div class="check">✅</div>
+    <h1>Approved!</h1>
+    <p class="sub">The browser has been logged in successfully.</p>
+  </div>
 
-      // KEY FIX: auto-rejoin the room after reconnect
-      if (currentRoom) {
-        socket.emit('join-room', currentRoom);
-        log('warn', 'Auto-rejoined room: ' + currentRoom);
-      }
-    });
+  <div class="log" id="log"></div>
+</div>
 
-    socket.on('disconnect', (reason) => {
-      setDot('off');
-      log('warn', 'Disconnected: ' + reason);
-      if (currentRoom) showBanner();
-    });
+<script>
+  // detect mode from URL: ?mode=mobile&room=XXXX
+  const params = new URLSearchParams(window.location.search);
+  const isMobile = params.get('mode') === 'mobile';
+  const roomParam = params.get('room');
 
-    socket.on('reconnect_attempt', (attempt) => {
-      setDot('connecting');
-      log('warn', 'Reconnecting... attempt ' + attempt);
-    });
+  // generate or use session id
+  const SESSION = roomParam || Math.random().toString(36).slice(2, 8).toUpperCase();
 
-    socket.on('reconnect', (attempt) => {
-      log('sys', 'Reconnected after ' + attempt + ' attempt(s)');
-    });
+  let roomConfirmed = false;
 
-    socket.on('user-joined', (data) => {
-      log('sys', 'Another user joined: ' + data.id);
-    });
+  const socket = io({
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000
+  });
 
-    socket.on('approved', (data) => {
-      log('event', '🟢 APPROVED from ' + data.from);
-      log('recv', 'Message: ' + data.message);
-      log('recv', 'Time: ' + data.timestamp);
-      document.body.classList.remove('flash-green');
-      void document.body.offsetWidth;
-      document.body.classList.add('flash-green');
-    });
+  // ── show correct screen ──
+  if (isMobile) {
+    document.getElementById('waitingScreen').style.display = 'none';
+    document.getElementById('mobileScreen').style.display = 'block';
+    document.getElementById('mobileSessionDisplay').textContent = SESSION;
+    document.title = 'Mobile Approve';
+  } else {
+    document.getElementById('sessionDisplay').textContent = SESSION;
+  }
 
-    function joinRoom() {
-      const room = document.getElementById('roomInput').value.trim();
-      if (!room) return;
-      currentRoom = room;
-      socket.emit('join-room', room);
-      log('sys', 'Joined room: ' + room);
-      document.getElementById('roomBadge').textContent = 'Room: ' + room;
-      document.getElementById('roomBadge').style.display = 'inline-block';
-      document.getElementById('approveBtn').style.display = 'block';
-      document.getElementById('approveHint').style.display = 'block';
-      document.getElementById('joinBtn').textContent = 'Joined ✓';
-      document.getElementById('joinBtn').disabled = true;
-      document.getElementById('roomInput').disabled = true;
+  // ── socket events ──
+  socket.on('connect', () => {
+    setDot('on');
+    log('Connected: ' + socket.id);
+    roomConfirmed = false;
+    socket.emit('join-room', SESSION);
+    log('Joining session: ' + SESSION + '...');
+  });
+
+  socket.on('room-joined', () => {
+    roomConfirmed = true;
+    log('✅ In session room — waiting...');
+    // enable approve button on mobile
+    if (isMobile) {
+      document.getElementById('approveBtn').disabled = false;
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    setDot('off');
+    roomConfirmed = false;
+    log('⚠️ Disconnected: ' + reason);
+    if (isMobile) document.getElementById('approveBtn').disabled = true;
+  });
+
+  socket.on('reconnect_attempt', () => setDot('connecting'));
+
+  // ── THE MAIN EVENT ──
+  socket.on('approved', (data) => {
+    if (isMobile) return; // mobile doesn't need to react to its own approve
+
+    if (data.replayed) {
+      log('⚠️ Missed approve replayed — logging in now', 'missed');
+    } else {
+      log('🟢 Approved live — logging in!', 'good');
     }
 
-    function sendApprove() {
-      if (!currentRoom) return;
-      socket.emit('approve', { room: currentRoom, message: 'User approved the request' });
-      log('sent', 'Sent: approve → room: ' + currentRoom);
-    }
+    // AUTO LOGIN — show logged in screen
+    document.getElementById('waitingScreen').style.display = 'none';
+    document.getElementById('loggedinScreen').style.display = 'block';
+    document.getElementById('loggedInUser').textContent = data.user || 'Mobile User';
+    document.getElementById('loggedInTime').textContent = 'Approved at ' + new Date(data.timestamp).toLocaleTimeString();
+    document.body.style.background = '#dcfce7';
+    setTimeout(() => document.body.style.background = '#f5f5f5', 2000);
+  });
 
-    function log(type, msg) {
-      const logEl = document.getElementById('log');
-      const empty = logEl.querySelector('div[style]');
-      if (empty) empty.remove();
-      const now = new Date().toTimeString().slice(0, 8);
-      const entry = document.createElement('div');
-      entry.className = 'log-entry ' + type;
-      entry.innerHTML = `<span class="time">${now}</span>${msg}`;
-      logEl.appendChild(entry);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
+  // ── mobile sends approve ──
+  function sendApprove() {
+    if (!roomConfirmed) return;
+    socket.emit('approve', { user: 'Mobile User' });
+    log('Approve sent!', 'good');
+    document.getElementById('mobileScreen').style.display = 'none';
+    document.getElementById('approvedDone').style.display = 'block';
+  }
 
-    function setDot(state) {
-      const dot = document.getElementById('dot');
-      const txt = document.getElementById('statusText');
-      dot.className = 'dot ' + state;
-      txt.textContent = state === 'on' ? 'Connected' : state === 'connecting' ? 'Reconnecting...' : 'Disconnected';
-    }
+  // ── copy mobile link ──
+  function copyMobileLink() {
+    const url = window.location.origin + '?mode=mobile&room=' + SESSION;
+    navigator.clipboard.writeText(url);
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy mobile link', 2000);
+  }
 
-    function showBanner() { document.getElementById('reconnectBanner').style.display = 'block'; }
-    function hideBanner() { document.getElementById('reconnectBanner').style.display = 'none'; }
-  </script>
+  function reset() {
+    window.location.href = window.location.origin;
+  }
+
+  function log(msg, type) {
+    const logEl = document.getElementById('log');
+    const now = new Date().toTimeString().slice(0, 8);
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (type || '');
+    entry.textContent = now + '  ' + msg;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setDot(state) {
+    const dot = document.getElementById('dot');
+    if (!dot) return;
+    dot.className = 'dot ' + (state === 'on' ? 'on' : state === 'connecting' ? '' : 'off');
+    const txt = document.getElementById('statusText');
+    if (txt) txt.textContent = state === 'on' ? 'Connected' : state === 'connecting' ? 'Reconnecting...' : 'Disconnected';
+  }
+</script>
 </body>
 </html>
